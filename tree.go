@@ -326,8 +326,9 @@ func (t *tree[T]) subtractKey(k key) *tree[T] {
 	return t
 }
 
-// subtractTree removes all value-bearing nodes from t that are also
-// value-bearing nodes found in o.
+// subtractTree removes all nodes from t that have value-bearing counterparts
+// in o. If a child of t is removed, then new nodes may be created to inherit
+// t's value, filling in the gaps around the removed node.
 func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
 	if o.hasValue {
 		// this whole branch is being subtracted; no need to traverse further
@@ -352,6 +353,40 @@ func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
 			t.right = t.right.subtractTree(*o.right)
 		} else {
 			t = t.subtractTree(*o.right)
+		}
+	}
+	return t
+}
+
+// intersectTree modifies t so that it is the intersection of t and o: a node
+// is included iff it (1) is present (with a value) in both trees or (2) it has
+// a value in one tree and a parent has a value in the other tree.
+func (t *tree[T]) intersectTree(o tree[T]) *tree[T] {
+	if t.key.equalFromRoot(o.key) {
+		if !o.hasValue {
+			t.clearValue()
+		}
+		if o.left == nil {
+			t.left = nil
+		} else {
+		}
+		if o.right == nil {
+			t.right = nil
+		}
+	}
+	// traverse children of both t and o as able
+	if o.left != nil {
+		if t.left != nil {
+			t.left = t.left.intersectTree(*o.left)
+		} else {
+			t = t.intersectTree(*o.left)
+		}
+	}
+	if o.right != nil {
+		if t.right != nil {
+			t.right = t.right.intersectTree(*o.right)
+		} else {
+			t = t.intersectTree(*o.right)
 		}
 	}
 	return t
