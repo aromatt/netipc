@@ -326,9 +326,14 @@ func (t *tree[T]) subtractKey(k key) *tree[T] {
 	return t
 }
 
-// subtractTree removes all nodes from t that have value-bearing counterparts
-// in o. If a child of t is removed, then new nodes may be created to inherit
-// t's value, filling in the gaps around the removed node.
+// subtractTree removes all entries (value-bearing nodes) from t that have
+// counterparts in o. If a child of t is removed, then new nodes may be created
+// to inherit t's value, filling in the gaps around the removed node.
+//
+// TODO: this method only really makes sense in the context of a PrefixSet.
+// "subtracting" a whole key-value entry from another isn't meaningful.
+// So maybe we need two types of trees: value-bearing ones, and others that
+// just have value-less entries.
 func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
 	if o.hasValue {
 		// this whole branch is being subtracted; no need to traverse further
@@ -358,38 +363,110 @@ func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
 	return t
 }
 
-// intersectTree modifies t so that it is the intersection of t and o: a node
-// is included iff it (1) is present (with a value) in both trees or (2) it has
-// a value in one tree and a parent has a value in the other tree.
-func (t *tree[T]) intersectTree(o tree[T]) *tree[T] {
+func (t *tree[T]) intersectTreeImpl(o tree[T], tPathHasVal, oPathHasVal bool) *tree[T] {
+	fmt.Println("#####################")
+	fmt.Println("# intersectTreeImpl #")
+	fmt.Println("#####################")
+	fmt.Println("t", t)
+	fmt.Println("o", &o)
+
 	if t.key.equalFromRoot(o.key) {
-		if !o.hasValue {
+		fmt.Println("  t == k")
+		if !(o.hasValue || oPathHasVal) {
+			if t.left == nil && t.right == nil {
+				return nil
+			}
 			t.clearValue()
 		}
-		if o.left == nil {
-			t.left = nil
+
+		// traverse left children as able
+		if o.left != nil {
+			fmt.Println("  traversing right")
+			if t.left != nil {
+				t.left = t.left.intersectTreeImpl(
+					*o.left,
+					t.hasValue || tPathHasVal,
+					o.hasValue || oPathHasVal,
+				)
+			} else {
+				t = t.intersectTreeImpl(
+					*o.left,
+					t.hasValue || tPathHasVal,
+					o.hasValue || oPathHasVal,
+				)
+			}
 		} else {
+			//t.left = nil
 		}
-		if o.right == nil {
-			t.right = nil
+
+		// traverse right children as able
+		if o.right != nil {
+			fmt.Println("  traversing right")
+			if t.right != nil {
+				t.right = t.right.intersectTreeImpl(
+					*o.right,
+					t.hasValue || tPathHasVal,
+					o.hasValue || oPathHasVal,
+				)
+			} else {
+				t = t.intersectTreeImpl(
+					*o.right,
+					t.hasValue || tPathHasVal,
+					o.hasValue || oPathHasVal,
+				)
+			}
+		} else {
+			//t.right = nil
+		}
+		return t
+	}
+
+	common := t.key.commonPrefixLen(o.key)
+	// t.key is a prefix of o.key; e.g. t=0, o=001
+	if common == t.key.len {
+		fmt.Println("  t is prefix of o")
+		// TODO: can probably constrain this more
+		if o.hasValue {
+			t = t.insert(o.key, o.value)
+		}
+
+		// Since t.key is a prefix of o.key, t branches in the middle of o. The
+		// bit of o that follows the prefix common to t and o determines what we
+		// do next.
+		isZero, _ := o.key.hasBitZeroAt(common)
+		tNext, rmKey := t.right, t.key.left
+		if isZero {
+			tNext, rmKey = t.left, t.key.right
+		}
+
+		// Remove child of t that diverges from o. Exception: if o has an
+		// ancestor entry, then we don't need to remove anything under t. TODO:
+		// is this check necessary?
+		if !oPathHasVal {
+			t.remove(rmKey())
+		}
+
+		// Traverse to the child of t that follows the path of o.key.
+		if tNext != nil {
+			tNext.intersectTreeImpl(o,
+				t.hasValue || tPathHasVal,
+				o.hasValue || oPathHasVal,
+			)
 		}
 	}
-	// traverse children of both t and o as able
-	if o.left != nil {
-		if t.left != nil {
-			t.left = t.left.intersectTree(*o.left)
-		} else {
-			t = t.intersectTree(*o.left)
-		}
-	}
-	if o.right != nil {
-		if t.right != nil {
-			t.right = t.right.intersectTree(*o.right)
-		} else {
-			t = t.intersectTree(*o.right)
-		}
-	}
+
+	fmt.Println("# returning...")
 	return t
+}
+
+// intersectTree modifies t so that it is the intersection of the entries
+// (value-bearing nodes) of t and o: an entry is included iff it (1) is present
+// in both trees or (2) is present in one tree and has a parent entry in the
+// other tree.
+//
+// TODO: same problem as subtractTree; only makes sense for PrefixSets.
+func (t *tree[T]) intersectTree(o tree[T]) *tree[T] {
+	return t.intersectTreeImpl(o, false, false)
 }
 
 // insertHole removes k and sets t, and all of its descendants, to v.

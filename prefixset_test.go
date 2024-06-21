@@ -174,6 +174,33 @@ func TestPrefixSetSubtractSet(t *testing.T) {
 	}
 }
 
+func TestPrefixSetIntersectSet(t *testing.T) {
+	tests := []struct {
+		set       []netip.Prefix
+		intersect []netip.Prefix
+		want      []netip.Prefix
+	}{
+		//{pfxs("::0/1"), pfxs("::0/1"), pfxs("::0/1")},
+		//{pfxs("::0/2"), pfxs("::0/2"), pfxs("::0/2")},
+		//{pfxs("::0/128"), pfxs("::0/128"), pfxs("::0/128")},
+		//{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
+		//{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::2/127"), pfxs("::0/126", "::2/128"), pfxs("::2/127", "::2/128")},
+	}
+	for _, tt := range tests {
+		psb := &PrefixSetBuilder{}
+		for _, p := range tt.set {
+			psb.Add(p)
+		}
+		intersectPsb := &PrefixSetBuilder{}
+		for _, p := range tt.intersect {
+			intersectPsb.Add(p)
+		}
+		psb.IntersectSet(intersectPsb.PrefixSet())
+		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
+	}
+}
+
 func TestPrefixSetPrefixes(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix

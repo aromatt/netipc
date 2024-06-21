@@ -200,6 +200,7 @@ func (k key) isValid() bool {
 	return k.offset < 128 && k.len <= 128
 }
 
+// left returns k extended by one bit, set to 0.
 func (k key) left() key {
 	return key{
 		content: k.content,
@@ -207,6 +208,8 @@ func (k key) left() key {
 		len:     k.len + 1,
 	}
 }
+
+// right returns k extended by one bit, set to 1.
 func (k key) right() key {
 	return key{
 		content: k.content.or(uint128{0, 1}.shiftLeft(128 - k.len - 1)),
