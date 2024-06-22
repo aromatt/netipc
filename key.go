@@ -42,7 +42,7 @@ func keyFromPrefix(p netip.Prefix) key {
 	return newKey(u128From16(addr.As16()), 0, bits)
 }
 
-// String prints the key's content in hex, followed by "/" + k.len. The least
+// String prints the key's content in hex, followed by "," + k.len. The least
 // significant bit in the output is the bit at position (k.len - 1). Leading
 // zeros are omitted.
 func (k key) String() string {
@@ -62,7 +62,7 @@ func (k key) String() string {
 			}
 		}
 	}
-	return fmt.Sprintf("%s/%d", ret, k.len)
+	return fmt.Sprintf("%s,%d", ret, k.len)
 }
 
 // Parse parses the output of String.
@@ -71,7 +71,7 @@ func (k *key) Parse(s string) error {
 	var err error
 
 	// Isolate content and len
-	parts := strings.Split(s, "/")
+	parts := strings.Split(s, ",")
 	if len(parts) != 2 {
 		return fmt.Errorf("failed to parse key '%s': invalid format", s)
 	}
@@ -129,7 +129,7 @@ func (k key) StringRel() string {
 			}
 		}
 	}
-	return fmt.Sprintf("%s/%d", ret, k.len-k.offset)
+	return fmt.Sprintf("%s,%d", ret, k.len-k.offset)
 }
 
 // truncated returns a copy of key truncated to n bits.
