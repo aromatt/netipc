@@ -180,11 +180,11 @@ func TestPrefixSetIntersectSet(t *testing.T) {
 		intersect []netip.Prefix
 		want      []netip.Prefix
 	}{
-		//{pfxs("::0/1"), pfxs("::0/1"), pfxs("::0/1")},
-		//{pfxs("::0/2"), pfxs("::0/2"), pfxs("::0/2")},
-		//{pfxs("::0/128"), pfxs("::0/128"), pfxs("::0/128")},
-		//{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
-		//{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/1"), pfxs("::0/1"), pfxs("::0/1")},
+		{pfxs("::0/2"), pfxs("::0/2"), pfxs("::0/2")},
+		{pfxs("::0/128"), pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::0/128")},
 		{pfxs("::2/127"), pfxs("::0/126", "::2/128"), pfxs("::2/127", "::2/128")},
 	}
 	for _, tt := range tests {

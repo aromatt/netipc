@@ -371,7 +371,7 @@ func (t *tree[T]) intersectTreeImpl(o tree[T], tPathHasVal, oPathHasVal bool) *t
 	fmt.Println("o", &o)
 
 	if t.key.equalFromRoot(o.key) {
-		fmt.Println("  t == k")
+		fmt.Printf("  t == k (%s == %s)\n", t.key, o.key)
 		if !(o.hasValue || oPathHasVal) {
 			if t.left == nil && t.right == nil {
 				return nil
@@ -381,7 +381,7 @@ func (t *tree[T]) intersectTreeImpl(o tree[T], tPathHasVal, oPathHasVal bool) *t
 
 		// traverse left children as able
 		if o.left != nil {
-			fmt.Println("  traversing right")
+			fmt.Println("  traversing left")
 			if t.left != nil {
 				t.left = t.left.intersectTreeImpl(
 					*o.left,
@@ -422,33 +422,57 @@ func (t *tree[T]) intersectTreeImpl(o tree[T], tPathHasVal, oPathHasVal bool) *t
 	}
 
 	common := t.key.commonPrefixLen(o.key)
-	// t.key is a prefix of o.key; e.g. t=0, o=001
-	if common == t.key.len {
+	switch {
+	case common == t.key.len: // t.key is a prefix of o.key
 		fmt.Println("  t is prefix of o")
 		// TODO: can probably constrain this more
 		if o.hasValue {
 			t = t.insert(o.key, o.value)
 		}
 
-		// Since t.key is a prefix of o.key, t branches in the middle of o. The
-		// bit of o that follows the prefix common to t and o determines what we
-		// do next.
-		isZero, _ := o.key.hasBitZeroAt(common)
-		tNext, rmKey := t.right, t.key.left
-		if isZero {
-			tNext, rmKey = t.left, t.key.right
-		}
-
-		// Remove child of t that diverges from o. Exception: if o has an
-		// ancestor entry, then we don't need to remove anything under t. TODO:
-		// is this check necessary?
-		if !oPathHasVal {
-			t.remove(rmKey())
-		}
+		// t branches in the middle of o.key, but t's children may still
+		// intersect with o.
+		//
+		// The bit of o.key just after the common prefix determines which of
+		// t's children to follow.
+		tChildFollow, tChildRemove := t.childPtrs(o.key, common)
 
 		// Traverse to the child of t that follows the path of o.key.
-		if tNext != nil {
-			tNext.intersectTreeImpl(o,
+		//
+		// We don't need to consider o's children; there's no intersection
+		// in o beyond the common prefix.
+		if *tChildFollow != nil {
+			(*tChildFollow).intersectTreeImpl(o,
+				t.hasValue || tPathHasVal,
+				o.hasValue || oPathHasVal,
+			)
+		}
+
+		// Remove the child of t that diverges from o.
+		//
+		// Exception: if o has an ancestor entry, then we don't need to remove
+		// anything under t. TODO: is this check necessary?
+		if !oPathHasVal {
+			*tChildRemove = nil
+		}
+
+	// o.key is a prefix of t.key
+	case common == o.key.len:
+		fmt.Println("  o is prefix of t")
+
+		// o branches in the middle of t.key, but o's children may still
+		// intersect with t.
+		//
+		// The bit of t.key just after the common prefix determines which of
+		// o's children to follow.
+		oChildFollow := o.childPtr(t.key, common)
+
+		// Traverse to the child of o that follows the path of t.key.
+		//
+		// We don't need to consider t's children; there's no intersection
+		// in t beyond the common prefix.
+		if *oChildFollow != nil {
+			t.intersectTreeImpl(**oChildFollow,
 				t.hasValue || tPathHasVal,
 				o.hasValue || oPathHasVal,
 			)
